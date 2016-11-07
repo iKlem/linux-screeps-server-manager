@@ -243,6 +243,7 @@ case "$1" in
     open_cli_console
     ;;
   u|update)
+    stop_server
     update_screeps
     ;;
   h|help)
