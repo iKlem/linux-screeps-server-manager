@@ -1,0 +1,260 @@
+#!/bin/bash
+
+blue="\e[34m"
+red="\e[91m"
+green="\e[32m"
+yellow="\e[93m"
+default="\e[0m"
+
+rootDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+steamcmd="${rootDir}/steamcmd"
+greenworks="${rootDir}/greenworks"
+screeps="${rootDir}/screeps"
+server="${screeps}/server"
+
+deps=("unzip" "git" "build-essentials" "tmux")
+
+install_dependencies () {
+  echo -e "${blue}-- [ Installation ] -- ${default}"
+  read -e -p "-> Installing in ${rootDir} ? [y]" ok
+  if [ -z ${ok} ]
+  then
+    echo -e "${red}-- [ Checking & Installing dependencies ] --${default}"
+    echo -e "[ ${yellow}WARNING${default} ] You'll need to provide your account password if some dependencies aren't installed."
+    # TODO: use the loop instead of "apt-get install"
+    #for pkg in ${deps[@]}; do
+    #	echo "${pkg}"
+    #done
+    sudo apt-get install unzip git build-essential tmux
+    sleep 1
+    echo ""
+    echo -e "${red}-- [ Checking for steamcmd ] --${default}"
+    if [ -d ${steamcmd} ]
+    then
+      echo -e "[ ${green}OK${default} ] Steam folder exist"
+    else
+      echo -e "[ ${red}ERROR${default} ] Steam folder doesn't exist"
+      echo -e "${green}--> DOWNLOADING SteamCMD... ${default}"
+      echo ""
+      wget http://media.steampowered.com/installer/steamcmd_linux.tar.gz
+      mkdir ${steamcmd} && cd ${steamcmd} && tar -xzf ../steamcmd_linux.tar.gz
+      cd .. && rm steamcmd_linux.tar.gz
+      echo -e "${green}--> SteamCMD DOWNLOADED! ${default}"
+    fi
+    sleep 1
+    echo ""
+    echo -e "${red}-- [ Checking for NodeJS, npm & node-gyp ] --${default}"
+	# TODO: Change to a check instead of install them
+    curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash
+    sudo apt-get install -y nodejs
+    sudo npm install npm@latest -g
+    sudo npm install node-gyp@latest -g
+    sleep 1
+    echo ""
+    echo -e "${red}-- [ Checking for steamworks archive ] --${default}"
+    if [ -a ${rootDir}/steamworks_*.zip ]
+    then
+      echo -e "[ ${green}OK${default} ] Archive present"
+    else
+      echo -e "[ ${red}ERROR${default} ] The archive isn't present. Aborting."
+      exit 10
+    fi
+    sleep 1
+    echo ""
+    echo -e "${red}-- [ Checking for greenworks ] --${default}"
+    if [ -d ${greenworks} ]
+    then
+      echo -e "[ ${green}OK${default} ] Greenworks folder exist"
+    else
+      echo -e "[ ${red}ERROR${default} ] Greenworks doesn't exist. Cloning..."
+      echo ""
+      git clone https://github.com/greenheartgames/greenworks.git greenworks
+      echo ""
+	  echo -e "${green} -> Unziping and moving SteamWorks...${default}"
+      cd ${greenworks}/deps/ && unzip -q ${rootDir}/steamworks_*.zip
+      mv sdk steamworks_sdk && cd ${greenworks}
+      echo ""
+      echo -e "[ ${yellow}WARNING${default} ] ${red}The script will now automaticaly build greenworks and it'll take some time...${default}"
+	  sleep 2
+      echo ""
+      npm install
+      echo ""
+      echo -e "${green}--> BUILD FINISHED! ${default}"
+    fi
+    install_screeps
+    install_greenworks
+	echo ""
+	echo ""
+	echo -e "${green} -> The server has been fully installed ! You can launch it with the \"start\" command.${default}"
+  else
+  	echo "Installation aborted"
+  	exit 9
+  fi
+}
+
+install_screeps () {
+  sleep 1
+  echo ""
+  echo -e "${red}-- [ RUNNING INSTALLATION/UPDATE OF SCREEPS SERVER ] --${default}"
+  echo -e "${yellow}      └> This will be automated for the next update of this script${default}"
+  read -p "Provide your Steam username: " steamUser
+  read -p "Provide the beta code: " betaCode
+  echo ""
+  ${steamcmd}/steamcmd.sh +force_install_dir ${screeps} +login ${steamUser} +app_update 464350 -beta Server -betapassword ${betaCode} validate +exit
+  echo -e "${green}-- [ SCREEPS SERVER INSTALLED/UPDATED ] --${default}"
+  echo ""
+}
+
+install_greenworks () {
+  echo -e "[ ${yellow}WARNING${default} ] ${red}Please wait, building in progress...${default}"
+  echo -e "[ ${yellow}WARNING${default} ] ${red}A message will appear in green when all is finished.${default}"
+  echo ""
+  sleep 2
+  cd ${server}
+  cp ${greenworks}/build/Release/greenworks-linux64.node ${server}/modules/backend/greenworks/lib/greenworks-linux64.node
+  for M in modules/*/;
+  do
+    pushd $M
+    rm node_modules -Rf
+    npm install
+    npm build
+    popd
+  done
+  pushd modules/driver/native/
+  node-gyp configure
+  node-gyp build
+  popd
+  rm logs/* -Rf
+  cd ${rootDir}
+}
+
+check_server_up () {
+  sleep 0.5
+  tmux new-session -s temp -d
+  tmux list-sessions | grep screeps > /dev/null
+  retval=$?
+  tmux kill-session -t temp
+  if [ $retval -eq 0 ]
+  then
+    return 0
+  else
+    return 1
+  fi
+}
+
+update_screeps () {
+  # echo "The update script doesn't exist at the moment. Sorry :( "
+  # echo "You can update the server by launching the \"install\" command."
+  install_screeps
+}
+
+launch_server () {
+  echo -e "${blue}Launching Screeps Private server...${default} \c"
+  if check_server_up;
+  then
+    echo -e "[ ${red}ERROR${default} ]"
+    echo -e " └> Server is already started. You can't start more than 1 server with this script (wait for a next update ;) )"
+    exit 2
+  else
+    if [ -d ${screeps} ]; then
+      cd ${server} && tmux new-session -s screeps -d && tmux send-keys -t screeps "node modules/launcher/bin/screeps.js start" ENTER
+      if check_server_up;
+      then
+        echo -e "[ ${green}OK${default} ]"
+        echo -e " ├> Type 'tmux attach -t screeps' to get to the server screen"
+        echo -e " ├> Do CTRL+B and d to detach from the server screen"
+        echo -e " └> More commands/informations with the \"$0 help\" command"
+      else
+        echo -e "[ ${red}ERROR${default} ]"
+        echo -e " └> There was an error when starting the server..."
+        exit 3
+      fi
+    else
+      echo -e "[ ${red}ERROR${default} ]"
+      echo -e " └> The server isn't installed. Please launch the installer with \"$0 install\""
+      exit 4
+    fi
+  fi
+}
+
+stop_server () {
+  echo -e "${blue}Stopping server...${default} \c\t"
+  if check_server_up;
+  then
+    tmux kill-session -t screeps
+    if ! check_server_up;
+    then
+      echo -e "[ ${green}OK${default} ]"
+    else
+      echo -e "[ ${green}OK?${default} ]"
+    fi
+  else
+    echo -e "[ ${red}ERROR${default} ]"
+    echo -e " └> Server isn't started. No need to stop it."
+    exit 6
+  fi
+}
+
+open_cli_console () {	
+  sleep 2 && clear
+  echo -e "${blue}Opening Screeps CLI...${default} (CTRL+C two times to quit) \c"
+  if check_server_up;
+  then
+    echo -e "[${green}OK${default}]"
+	echo ""
+    cd ${server} && node modules/launcher/bin/screeps.js cli
+  else
+    echo -e "[ ${red}ERROR${default} ]"
+    echo -e " └> The server can't be reached. Maybe it's not started?"
+    exit 5
+  fi
+}
+
+usage () {
+  echo "Usage : $0 cmd"
+  echo ""
+  echo -e "${yellow}Commands${default}"
+  echo -e "  install, i \t - Install the dependencies and the Screeps server"
+  echo -e "  start,   st\t - Launch the server"
+  echo -e "  stop,    sp\t - Stop the server"
+  echo -e "  cli        \t - Open the Screeps CLI (server need to be started)"
+  echo -e "  update,  u \t - Update the server"
+  # echo -e "  backend, b \t - Open the backend log file and print it (not implemented)"
+  echo -e "  help,    h \t - Show this command list"
+  echo ""
+}
+
+echo " [ Screeps Server Manager for Linux ]"
+echo "   Made by iKlem      -        v0.1"
+echo "   https://github.com/iKlem"
+echo ""
+case "$1" in
+  i|install)
+    sleep 1
+    install_dependencies
+    ;;
+  st|start)
+    launch_server
+    ;;
+  sp|stop)
+    stop_server
+    ;;
+  cli)
+    open_cli_console
+    ;;
+  u|update)
+    update_screeps
+    ;;
+  h|help)
+    usage
+    ;;
+  *)
+    if [ -n "$1" ]; then
+      echo -e "[ ${red}ERROR${default} ] -> Unknown command: $0 $1\n"
+    fi
+    usage
+    exit 1
+    ;;
+esac
+echo ""
+exit 0
