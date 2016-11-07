@@ -12,35 +12,69 @@ greenworks="${rootDir}/greenworks"
 screeps="${rootDir}/screeps"
 server="${screeps}/server"
 
-deps=("unzip" "git" "build-essentials" "tmux")
+deps=("unzip" "git" "build-essential" "tmux")
+missingDeps=()
+
+checking_dependencies () {
+  nbDeps=0
+  echo -e "${red}-- [ Checking dependencies ] --${default}"
+  # For each dependencies we check it with dpkg-query.
+  # TODO: test on other distro.
+  for pkg in ${deps[@]}; do
+	echo -e "$pkg\t\c"
+	sleep 0.5
+    dpkg-query -W -f='${Status}' ${pkg} 2> /dev/null | grep -q -P '^install ok installed$'
+	if [ $? -eq 1 ]; then
+	  echo -e "[ ${red}MISSING${default} ]"
+	  ((nbDeps++))
+	  missingDeps+=(${pkg})
+    else
+	  echo -e "[ ${green}OK${default} ]"
+	fi
+  done
+}
 
 install_dependencies () {
+  if [[ $EUID -ne 0 ]]; then
+    # If user launch the script without sudo
+    if [ $nbDeps -gt 0 ]; then
+	  return 1
+    fi
+	return 0
+  else
+    # And here with sudo in front of command
+	apt-get intall ${missingDeps[@]}
+	return 0
+  fi
+}
+
+checking_steamcmd () {
+  echo -e "${red}-- [ Checking for steamcmd ] --${default}"
+  if [ -d ${steamcmd} ]; then
+    echo -e "[ ${green}OK${default} ] Steam folder exist"
+  else
+    echo -e "[ ${red}ERROR${default} ] Steam folder doesn't exist"
+    echo -e "${green}--> DOWNLOADING SteamCMD... ${default}"
+	sleep 0.5
+    echo ""
+    wget http://media.steampowered.com/installer/steamcmd_linux.tar.gz
+    mkdir ${steamcmd} && cd ${steamcmd} && tar -xzf ../steamcmd_linux.tar.gz
+    cd .. && rm steamcmd_linux.tar.gz
+    echo -e "${green}--> SteamCMD DOWNLOADED! ${default}"
+	sleep 0.5
+fi
+}
+
+install_all () {
   echo -e "${blue}-- [ Installation ] -- ${default}"
   read -e -p "-> Installing in ${rootDir} ? [y]" ok
   if [ -z ${ok} ]
   then
-    echo -e "${red}-- [ Checking & Installing dependencies ] --${default}"
-    echo -e "[ ${yellow}WARNING${default} ] You'll need to provide your account password if some dependencies aren't installed."
-    # TODO: use the loop instead of "apt-get install"
-    #for pkg in ${deps[@]}; do
-    #	echo "${pkg}"
-    #done
-    sudo apt-get install unzip git build-essential tmux
-    sleep 1
     echo ""
-    echo -e "${red}-- [ Checking for steamcmd ] --${default}"
-    if [ -d ${steamcmd} ]
-    then
-      echo -e "[ ${green}OK${default} ] Steam folder exist"
-    else
-      echo -e "[ ${red}ERROR${default} ] Steam folder doesn't exist"
-      echo -e "${green}--> DOWNLOADING SteamCMD... ${default}"
-      echo ""
-      wget http://media.steampowered.com/installer/steamcmd_linux.tar.gz
-      mkdir ${steamcmd} && cd ${steamcmd} && tar -xzf ../steamcmd_linux.tar.gz
-      cd .. && rm steamcmd_linux.tar.gz
-      echo -e "${green}--> SteamCMD DOWNLOADED! ${default}"
-    fi
+	checking_dependencies
+    sleep 1
+	echo ""
+	checking_steamcmd
     sleep 1
     echo ""
     echo -e "${red}-- [ Checking for NodeJS, npm & node-gyp ] --${default}"
@@ -86,6 +120,10 @@ install_dependencies () {
 	echo ""
 	echo ""
 	echo -e "${green} -> The server has been fully installed ! You can launch it with the \"start\" command.${default}"
+	if ! install_dependencies; then
+	  echo -e "\n[ ${yellow}WARNING${default} ] Some dependencies aren't installed. Before starting your server you will need to install them."
+      echo -e "            Command to run in root user : apt-get install ${missingDeps[@]}"
+	fi
   else
   	echo "Installation aborted"
   	exit 9
@@ -231,7 +269,7 @@ echo ""
 case "$1" in
   i|install)
     sleep 1
-    install_dependencies
+    install_all
     ;;
   st|start)
     launch_server
