@@ -16,6 +16,9 @@ Screeps server manager for Linux with auto installer and easy-to-use script
 * git
 * tmux
 * build-essential
+* nodeJS 6
+* npm
+* node-gyp
 
 ### Installation
 * Create a folder on your server (ex: `screepsserver` or `screeps`)
