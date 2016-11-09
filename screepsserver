@@ -1,4 +1,6 @@
 #!/bin/bash
+# Author: Clément Delalande - http://github.com/iKlem
+# Version : 0.2.1
 
 blue="\e[34m"
 red="\e[91m"
@@ -80,7 +82,7 @@ checking_for_package_file () {
     echo -e " │ ${green}└─── The package.json file is here.${default}"
   else
     echo -e " │ ${red}├─── The package.json file is missing!${default}"
-    echo -e " │ ${blue}└─── Generating default package.json...${default}"
+    echo -e " │ └─── Downloading default package.json..."
     echo -e " ┊\n"
     wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json"
     # npm init -f --silent # Generating or Downloading a premade one ?
@@ -221,18 +223,26 @@ usage () {
 echo -e "${yellow}┌──────────────────────────────────┐${default}"
 echo -e "${blue}  Screeps Server Manager for Linux${default}"
 echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.2"
+echo " ├── Made by iKlem - v0.2.1"
 echo " └── https://github.com/iKlem"
 echo ""
 case "$1" in
   i|install)
     install_all
     ;;
+  is|install-screeps)
+    install_screeps
+    ;;
   st|start)
     start_server
     ;;
   sp|stop)
     stop_server
+    ;;
+  r|restart)
+    stop_server
+    echo ""
+    start_server
     ;;
   cli)
     open_cli_console
