@@ -1,4 +1,7 @@
-steamcmd/*
-greenworks/*
-steamworks_*.zip
-screeps/*
+assets/*
+logs/*
+mods/*
+node_modules/*
+.screepsrc
+db.json
+steam_appid.txt

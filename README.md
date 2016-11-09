@@ -9,28 +9,23 @@ Screeps server manager for Linux with auto installer and easy-to-use script
 * Automatic installer
 * Start & Stop the server
 * Access to the Screeps CLI
-* Pretty colors :3
+* Pretty colors and prompt :3
 
 ### Dependencies
-* unzip
-* git
 * tmux
-* build-essential
-* nodeJS 6
+* NodeJS (>= 4)
 * npm
 * node-gyp
 
 ### Installation
-* Create a folder on your server (ex: `screepsserver` or `screeps`)
-* Connect with your Steam account and download the steamworks sdk [HERE](https://partner.steamgames.com/)
-* Put the .zip in your folder
-* Download the `screepsserver` in your folder
+* Download or clone this repository : `git clone https://github.com/iKlem/linux-screeps-server-manager.git NAME_FOR_SERVER`
 * Set the execute right on the script : `chmod +x screepsserver`
-* And launch `./screepsserver install` (with OR without sudo)
+* And launch `./screepsserver install` OR `./screepsserver i` (with OR without sudo)
+* Follow the instructions when needed
 
 ### After Installation
 * If you run the script without sudo or root permissions, you have to install the dependencies.
-* Don't forget to change the .screeprc with your configuration
+* Don't forget to configure the .screeprc with your changes
 * You can launch `./screepsserver help` for a list of available commands
 
 ### Problem or ideas ?
