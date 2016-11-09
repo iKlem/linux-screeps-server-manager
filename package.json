@@ -18,6 +18,6 @@
   },
   "homepage": "https://github.com/iKlem/linux-screeps-server-manager#readme",
   "dependencies": {
-    "screeps": "^1.0.3"
+    "screeps": "^1.0.4"
   }
 }
