@@ -2,7 +2,7 @@
 Screeps server manager for Linux with auto installer and easy-to-use script.  
 __This file has been tested on Debian 8 Jessie (64 bits)__
 
-###### Version: 0.2.1
+###### Version: 0.3
 ### Features
 * __Only 1 server at the moment__
 * Easy to use
@@ -12,15 +12,15 @@ __This file has been tested on Debian 8 Jessie (64 bits)__
 * Pretty colors and prompt :3
 
 ### Dependencies
+* Python 2
 * tmux
 * NodeJS (>= 4)
-* npm
-* node-gyp
+* wget
 
 ### Installation
 * Download or clone this repository : `git clone https://github.com/iKlem/linux-screeps-server-manager.git NAME_FOR_SERVER`
 * Go to your new folder and set the execute right on the script : `chmod +x screepsserver`
-* Launch the installer with `./screepsserver install` OR `./screepsserver i` (with OR without sudo)
+* Launch the installer with `./screepsserver install` OR `./screepsserver i`
 * Follow the instructions when needed during installation
 
 ### After Installation

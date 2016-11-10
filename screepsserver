@@ -1,6 +1,6 @@
 #!/bin/bash
-# Author: Clément Delalande - http://github.com/iKlem
-# Version : 0.2.1
+#Author: Clement Delalande - http://github.com/iKlem
+#Version : 0.3
 
 blue="\e[34m"
 red="\e[91m"
@@ -8,14 +8,16 @@ green="\e[32m"
 yellow="\e[93m"
 default="\e[0m"
 
+nodeMinVersion=4
+
 rootDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 screepsBin="${rootDir}/node_modules/screeps/bin"
-logs="${rootDir}/logs"
+# TODO: change this variable when the SSMC will be implemented
 # lastLogDir="$( basename $( ls -td -- ${server}/logs/* | head -n 1 ) )"
-mods="${rootDir}/mods"
+# TODO: change this variable when the mod manager will be implemented
+# mods="${rootDir}/mods"
 
-deps=("python2.7" "tmux" "nodejs")
+deps=("python2.7" "tmux" "nodejs" "wget")
 missingDeps=()
 
 checking_dependencies () {
@@ -42,87 +44,67 @@ checking_dependencies () {
 }
 
 install_dependencies () {
-  if [[ $EUID -ne 0 ]]; then
-  # If user launch the script without sudo
-    if [ $nbDeps -gt 0 ]; then
-      return 1
-    fi
-    return 0
-  else
-    # And here with sudo in front of command
-    apt-get intall "${missingDeps[@]}"
-    return 0
+  if [ $nbDeps -gt 0 ]; then
+    echo -e " ├─┬ ${yellow}Installing dependencies${default}"
+    sudo apt-get install "${missingDeps[@]}"
   fi
-}
-
-checking_node () {
-  echo -e " ├── ${yellow}Checking for NodeJS, npm & node-gyp${default}"
-  if [[ $EUID -eq 0 ]]; then
-    # TODO: Change to a check instead of install them
-    curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash
-    sudo apt-get install -y nodejs
-    sudo npm install npm@latest -g
-    sudo npm install node-gyp@latest -g
-  else
-    echo -e " ┊\n"
-    echo "No check have been added for npm and node-gyp."
-    echo "Please run as root these lines after the installation : "
-    #echo "curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash"
-    #echo "sudo apt-get install -y nodejs"
-    echo "sudo npm install npm@latest -g"
-    echo "sudo npm install node-gyp@latest -g"
-    echo ""
-    sleep 10
-  fi
+  echo -e " ${green}└─── All dependencies are installed!${default}"
 }
 
 checking_for_package_file () {
   echo -e " ├─┬ ${yellow}Checking the package.json file${default}"
   if [ -e ${rootDir}/package.json ]; then
-    echo -e " │ ${green}└─── The package.json file is here.${default}"
+    echo -e " │ ${green}└─── The package.json file exist.${default}"
   else
     echo -e " │ ${red}├─── The package.json file is missing!${default}"
-    echo -e " │ └─── Downloading default package.json..."
-    echo -e " ┊\n"
-    wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json"
-    # npm init -f --silent # Generating or Downloading a premade one ?
+    echo " │ ├─── Downloading default package.json..."
+    echo ""
+    wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json" -q --show-progress
+    echo ""
+    echo " │ └─── Downloaded!"
   fi
 }
 
 install_screeps () {
-  echo -e " ├─┬ ${yellow}Downloading Screeps server${default}\n"
+  echo -e " ├─${yellow}┬ Downloading Screeps server${default}"
+  echo -e " ┊ ${yellow}└────────────────────────────${default}"
+  echo ""
   npm install --save screeps@latest
-  echo -e " │ ${green}└─── Screeps server downloaded${default}"
+  echo ""
+  echo -e " │  ${green}Screeps server downloaded${default}"
   echo -e " │"
-  echo -e " ├── ${yellow}Starting configuration${default}"
-  echo -e " ┊\n"
+  echo -e " ├─${yellow}┬ Starting configuration${default}"
+  echo -e " ┊ ${yellow}└────────────────────────${default}"
+  echo ""
   node ${screepsBin}/screeps.js init
-  echo -e "\n ┆      ${green}Done!${default}"
+  echo ""
+  echo -e " ┊  ${green}Done!${default}"
 }
 
 install_all () {
-  sleep 0.5
-  echo -e "${yellow}│${blue} Installation ${default}"
+  sleep 2 && clear
+  echo -e "\n${yellow}│${blue} Installation ${default}"
   echo -e "${yellow}└┬─────────────┘${default}"
   read -e -p " ├── Installing in ${rootDir} ? [y] " ok
   if [ -z "${ok}" ]; then
     echo " ┊"
     checking_dependencies
-    sleep 0.5
-    echo " ┊"
-    checking_node
-    sleep 0.5
     echo " ┊"
     checking_for_package_file
-    sleep 0.5
     echo " ┊"
-    install_screeps
-    sleep 0.5
-    echo -e "${green} │"
-    echo -e " └─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
-    if ! install_dependencies; then
+    if [ -d "${screepsBin}" ]; then
+      echo -e "${green} │"
+      echo -e " └─── The server is already installed! You can launch it with the \"start\" command.${default}"
+    else
+      install_screeps
+      sleep 0.5
+      echo -e "${green} │"
+      echo -e " └─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
+    fi
+    if [ $nbDeps -gt 0 ]; then
       echo -e "\n[ ${yellow}WARNING${default} ] Some dependencies aren't installed. Before starting your server you will need to install them."
-      echo -e "            Command to run in root user : apt-get install ${missingDeps[@]}"
+      echo -e "            Command to run in root user : '${0} install-deps' OR 'apt-get install ${missingDeps[@]}'"
+      echo -e "\n[ ${blue}INFO${default} ] NodeJS version need to be 4 or later."
     fi
   else
     echo -e "${red} │"
@@ -193,6 +175,18 @@ stop_server () {
   fi
 }
 
+# TODO: Update this part to check directly the screeps server instead of tmux.
+show_status () {
+  echo -e "${yellow}│${blue} Checking server status ${default}"
+  echo -e "${yellow}└┬───────────────────────┘${default}"
+  check_server_up
+  if [ $retval -eq 1 ]; then
+    echo -e " └── Server is ${green}OK${default}."
+  else
+    echo -e " └── Server is ${red}DOWN${default}."
+  fi
+}
+
 open_cli_console () {
   echo -e "${yellow}│${blue} Opening Screeps CLI...${default}   (CTRL+C two times to quit)"
   echo -e "${yellow}└┬───────────────────────┘${default}"
@@ -211,19 +205,27 @@ usage () {
   echo ""
   echo -e "${yellow}│${blue} Commands ${default}"
   echo -e "${yellow}└┬─────────┘${default}"
-  echo -e " ├── install, i \t - Install the dependencies and the Screeps server"
-  echo -e " ├── start,   st\t - Launch the server"
-  echo -e " ├── stop,    sp\t - Stop the server"
-  echo -e " ├── cli        \t - Open the Screeps CLI (server need to be started)"
-  echo -e " ├── update,  u \t - Update the server"
-  echo -e " └── help,    h \t - Show this command list"
+  echo -e " ├── install,         i \t - Install the dependencies and the Screeps server."
+  echo -e " ├── install-screeps, is\t - Install the Screeps server, can be useful for getting back missing files."
+  echo -e " ├── install-deps,    id\t - Install the dependencies."
+  echo -e " ├── start,           st\t - Launch the server."
+  echo -e " ├── stop,            sp\t - Stop the server."
+  echo -e " ├── restart,         r \t - Restart the server."
+  echo -e " ├── update,          u \t - Update the server."
+  echo -e " ├── status             \t - Show the server status."
+  echo -e " ├── cli                \t - Open the Screeps CLI (server need to be started)."
+  # TODO: add the SSMC :)
+  # echo -e " ├── console,         c \t - Open the SSMC (Screeps Server Manager Console)."
+  echo -e " └── help,            h \t - Show this command list."
   echo ""
 }
+
+# IDEA: add "tmux set mouse-select-pane" when creating the SSMC.
 
 echo -e "${yellow}┌──────────────────────────────────┐${default}"
 echo -e "${blue}  Screeps Server Manager for Linux${default}"
 echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.2.1"
+echo " ├── Made by iKlem - v0.3"
 echo " └── https://github.com/iKlem"
 echo ""
 case "$1" in
@@ -231,7 +233,20 @@ case "$1" in
     install_all
     ;;
   is|install-screeps)
-    install_screeps
+    checking_for_package_file
+    if [ -d "${screepsBin}" ]; then
+      echo -e "${green} │"
+      echo -e " └─── The server is already installed! You can launch it with the \"start\" command.${default}"
+    else
+      install_screeps
+      sleep 0.5
+      echo -e "${green} │"
+      echo -e " └─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
+    fi
+    ;;
+  id|install-deps)
+    checking_dependencies
+    install_dependencies
     ;;
   st|start)
     start_server
@@ -243,6 +258,9 @@ case "$1" in
     stop_server
     echo ""
     start_server
+    ;;
+  status)
+    show_status
     ;;
   cli)
     open_cli_console

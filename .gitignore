@@ -1,7 +1,8 @@
 assets/*
 logs/*
-mods/*
+example-mods/*
 node_modules/*
-.screepsrc
 db.json
+mods.*
 steam_appid.txt
+.screepsrc
