@@ -14,7 +14,7 @@ __This file has been tested on Debian 8 Jessie (64 bits)__
 ### Dependencies
 * Python 2
 * tmux
-* NodeJS (>= 4)
+* NodeJS (>= 6)
 * wget
 
 ### Installation
