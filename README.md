@@ -23,7 +23,7 @@ __This file has been tested on Debian 8 Jessie (64 bits)__
 * Launch the installer with `./screepsserver install` OR `./screepsserver i`
 * Follow the instructions when needed during installation
 
-![Install.GIF](https://cdelalande.fr/files/install.gif)
+![Install.GIF](https://cdelalande.fr/files/install-2.gif)
 
 ### After Installation
 * If you run the script without sudo or root permissions, you have to install the dependencies.
