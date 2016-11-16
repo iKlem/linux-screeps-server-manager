@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Clement Delalande - http://github.com/iKlem
-#Version : 0.4
+#Version : 0.5
 
 blue="\e[96m"
 red="\e[91m"
@@ -52,18 +52,16 @@ install_dependencies () {
   echo -e " └─── All dependencies are installed!${default}"
 }
 
-checking_for_package_file () {
-  echo -e " ├─┬ ${yellow}Checking the package.json file${default}"
-  if [ -e ${rootDir}/package.json ]; then
-    echo -e " │ ${green}└─── The package.json file exist.${default}"
+checking_for_node_modules_folder () {
+  echo -e " ├─┬ ${yellow}Checking for nod_modules folder${default}"
+  if [ -d ${rootDir}/node_modules ]; then
+    echo -e " │ ${green}└─── The node_modules folder exist.${default}"
   else
-    echo -e " │ ${yellow}├─── Warning: The package.json file is missing!${default}"
-	sleep 0.25
-    echo " │ ├─── Downloading default package.json..."
-    echo ""
-    wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json" -q --show-progress
-    echo ""
-    echo " │ └─── Downloaded!"
+    echo -e " │ ${yellow}├─── Warning: The node_modules folder is missing!${default}"
+    sleep 0.5
+    echo " │ ├─── Generating new node_modules folder..."
+    mkdir node_modules
+    echo " │ └─── Done!"
   fi
 }
 
@@ -71,7 +69,7 @@ install_screeps () {
   echo -e " ├─${yellow}┬ Downloading Screeps server${default}"
   echo -e " │ ${yellow}└────────────────────────────${default}"
   echo ""
-  npm install --save screeps@latest
+  npm install screeps@latest
   echo ""
   echo -e " │  ${green}Screeps server downloaded${default}"
   echo -e " │"
@@ -118,7 +116,7 @@ install_all () {
 }
 
 check_server_up () {
-  port=$(awk '/port = / && !/cli/' ${rootDir}/.screepsrc |cut -c8-12)
+  port=$(awk '/port = / && !/cli/' ${rootDir}/.screepsrc | cut -c8-12)
   $(nc -z 127.0.0.1 ${port})
   retval=$?
 }
@@ -134,9 +132,9 @@ update_screeps () {
   echo -e "${yellow}└─────────────────┘${default}\n"
   check_server_up
   if [ $retval -eq 1 ]; then
-	npm update screeps
-	sleep 0.5
-	start_server
+    npm update screeps@latest
+    sleep 0.5
+    start_server
   else
     echo -e "Can't stop server..." # TODO: add some style here dude.
   fi
@@ -152,28 +150,24 @@ start_server () {
     exit 2
   else
     if [ -d "${screepsBin}" ]; then
-	  cpt=0
+      cpt=0
       tmux new-session -s screeps -d && tmux send-keys -t screeps "node ${screepsBin}/screeps.js start" ENTER
-	  check_server_up
-	  echo -e " ├── Waiting for server to start\c"
-	  while [ $retval -eq 1 ]; do
-		check_server_up		
-		((cpt++))
-		if [ $cpt -eq 10 ]; then
-		  echo -e "\n${red} └──  Error: Server take too long to start!${default}"
-		  exit 15
-		fi
-		sleep 1
-		echo -e ".\c"
-	  done
+      check_server_up
+      echo -e " ├── Waiting for server to start\c"
+      while [ $retval -eq 1 ]; do
+        check_server_up
+        ((cpt++))
+        if [ $cpt -eq 16 ]; then
+          echo -e "\n${red} └──  Error: Server take too long to start!${default}"
+          exit 15
+        fi
+        sleep 1
+        echo -e ".\c"
+      done
       echo -e "\n ${green}└─┬ Server started${default}"
       echo -e "   ├─── Type 'tmux attach -t screeps' to get to the server screen"
       echo -e "   ├─── Do CTRL+B and d to detach from the server screen"
       echo -e "   └─── More commands/informations with the \"$0 help\" command"
-      #else
-      #  echo -e "${red} └── There was an error when starting the server...${default}"
-      #  exit 3
-      #fi
     else
       echo -e "${red} └── Error: The server isn't installed. Please launch the installer with \"$0 install\"\n${default}"
       exit 4
@@ -187,14 +181,21 @@ stop_server () {
   check_server_up
   sleep 0.5
   if [ $retval -eq 0 ]; then
-    tmux send "C-c"
+    tmux send "C-c" # Doing CTRL + C
     check_server_up
-    if [ $retval -eq 1 ]; then
-      echo -e "${green} └── Server is stopped!${default}"
-      tmux kill-session -t screeps
-    else # In case this condition is "ELSE", the prompt will show this line.
-      echo -e "[ ${green}OK?${default} ]"
-    fi
+    echo -e " ├── Waiting for server to stop\c"
+    while [ $retval -eq 0 ]; do
+      check_server_up
+      ((cpt++))
+      if [ $cpt -eq 6 ]; then
+        echo -e "\n${yellow} ├── Warning: Server take too long to stop! Forcing...${default}\c"
+        break
+      fi
+      sleep 1
+      echo -e ".\c"
+    done
+    echo -e "\n${green} └── Server is stopped!${default}"
+    tmux kill-session -t screeps
   else
     echo -e "${red} └── ERROR: Server isn't started. No need to stop it.${default}\n"
   fi
@@ -232,7 +233,6 @@ usage () {
   echo -e "${yellow}│${blue} Commands ${default}"
   echo -e "${yellow}└┬─────────┘${default}"
   echo -e " ├── install,         i \t - Install the dependencies and the Screeps server."
-  echo -e " ├── install-screeps, is\t - Install the Screeps server, can be useful for getting back missing files."
   echo -e " ├── install-deps,    id\t - Install the dependencies."
   echo -e " ├── start,           st\t - Launch the server."
   echo -e " ├── stop,            sp\t - Stop the server."
@@ -251,24 +251,12 @@ usage () {
 echo -e "${yellow}┌──────────────────────────────────┐${default}"
 echo -e "${blue}  Screeps Server Manager for Linux${default}"
 echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.4"
+echo " ├── Made by iKlem - v0.5"
 echo " └── https://github.com/iKlem"
 echo ""
 case "$1" in
   i|install)
     install_all
-    ;;
-  is|install-screeps)
-    checking_for_package_file
-    if [ -d "${screepsBin}" ]; then
-      echo -e "${green} │"
-      echo -e " └─── The server is already installed! You can launch it with the \"start\" command.${default}"
-    else
-      install_screeps
-      sleep 0.5
-      echo -e "${green} │"
-      echo -e " └─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
-    fi
     ;;
   id|install-deps)
     checking_dependencies
