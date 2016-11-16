@@ -2,7 +2,7 @@
 Screeps server manager for Linux with auto installer and easy-to-use script.  
 __This file has been tested on Debian 8 Jessie (64 bits)__
 
-###### Version: 0.4
+###### Version: 0.5
 ### Features
 * __Only 1 server at the moment__
 * Easy to use
