@@ -52,15 +52,15 @@ install_dependencies () {
   echo -e " └─── All dependencies are installed!${default}"
 }
 
-checking_for_node_modules_folder () {
-  echo -e " ├─┬ ${yellow}Checking for nod_modules folder${default}"
-  if [ -d ${rootDir}/node_modules ]; then
-    echo -e " │ ${green}└─── The node_modules folder exist.${default}"
+checking_for_package_file () {
+  echo -e " ├─┬ ${yellow}Checking for package.json file${default}"
+  if [ -e ${rootDir}/package.json ]; then
+    echo -e " │ ${green}└─── The package.json file exist.${default}"
   else
-    echo -e " │ ${yellow}├─── Warning: The node_modules folder is missing!${default}"
+    echo -e " │ ${yellow}├─── Warning: The package.json file is missing!${default}"
     sleep 0.5
-    echo " │ ├─── Generating new node_modules folder..."
-    mkdir node_modules
+    echo " │ ├─── Downloading package.json file from official repository..."
+    wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json" -q --show-progress
     echo " │ └─── Done!"
   fi
 }
@@ -69,7 +69,7 @@ install_screeps () {
   echo -e " ├─${yellow}┬ Downloading Screeps server${default}"
   echo -e " │ ${yellow}└────────────────────────────${default}"
   echo ""
-  npm install screeps@latest
+  npm install --save screeps
   echo ""
   echo -e " │  ${green}Screeps server downloaded${default}"
   echo -e " │"
@@ -132,7 +132,7 @@ update_screeps () {
   echo -e "${yellow}└─────────────────┘${default}\n"
   check_server_up
   if [ $retval -eq 1 ]; then
-    npm update screeps@latest
+    npm update --save screeps
     sleep 0.5
     start_server
   else

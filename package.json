@@ -1,0 +1,19 @@
+{
+  "name": "screepsServer",
+  "version": "0.6.0",
+  "description": "Screeps server manager for Linux with auto installer and easy-to-use script.",
+  "dependencies": {
+    "screeps": "^2.1.3",
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iKlem/linux-screeps-server-manager.git"
+  },
+  "keywords": [],
+  "author": "iKlem",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iKlem/linux-screeps-server-manager/issues"
+  },
+  "homepage": "https://github.com/iKlem/linux-screeps-server-manager#readme"
+}
