@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Clement Delalande - http://github.com/iKlem
-#Version : 0.5
+#Version : 0.6.0
 
 blue="\e[96m"
 red="\e[91m"
@@ -251,7 +251,7 @@ usage () {
 echo -e "${yellow}┌──────────────────────────────────┐${default}"
 echo -e "${blue}  Screeps Server Manager for Linux${default}"
 echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.5"
+echo " ├── Made by iKlem - v0.6.0"
 echo " └── https://github.com/iKlem"
 echo ""
 case "$1" in
