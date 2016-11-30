@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Clement Delalande - http://github.com/iKlem
-#Version : 0.6.0
+#Version : 0.7.0
 
 blue="\e[96m"
 red="\e[91m"
@@ -17,7 +17,7 @@ screepsBin="${rootDir}/node_modules/screeps/bin"
 # TODO: change this variable when the mod manager will be implemented
 # mods="${rootDir}/mods"
 
-deps=("python2.7" "tmux" "nodejs" "wget")
+deps=("python2.7" "tmux" "nodejs" "build-essential")
 missingDeps=()
 
 checking_dependencies () {
@@ -27,18 +27,19 @@ checking_dependencies () {
   # TODO: test on other distro.
   for pkg in "${deps[@]}"; do
     if [ "${deps[-1]}" == "${pkg}" ]; then
-      echo -e " │ └─── Checking for $pkg... \t\c"
+      echo -e " │ └─── Checking for \c"
     else
-      echo -e " │ ├─── Checking for $pkg... \t\c"
+      echo -e " │ ├─── Checking for \c"
     fi
+    printf "%20s..." "$pkg"
     sleep 0.5
     dpkg-query -W -f='${Status}' "${pkg}" 2> /dev/null | grep -q -P '^install ok installed$'
     if [ $? -eq 1 ]; then
-      echo -e "[ ${red}MISSING${default} ]"
+      echo -e "\t[ ${red}MISSING${default} ]"
       ((nbDeps++))
       missingDeps+=("${pkg}")
     else
-      echo -e "[ ${green}OK${default} ]"
+      echo -e "\t[ ${green}OK${default} ]"
     fi
   done
 }
@@ -59,8 +60,11 @@ checking_for_package_file () {
   else
     echo -e " │ ${yellow}├─── Warning: The package.json file is missing!${default}"
     sleep 0.5
-    echo " │ ├─── Downloading package.json file from official repository..."
-    wget "https://raw.githubusercontent.com/iKlem/linux-screeps-server-manager/master/package.json" -q --show-progress
+    echo " │ ├─── Generating package.json file with default options..."
+    if [ ! -d ${rootDir}/node_modules ]; then
+      mkdir node_modules
+    fi
+    npm init -y > /dev/null
     echo " │ └─── Done!"
   fi
 }
@@ -228,7 +232,7 @@ open_cli_console () {
 }
 
 usage () {
-  echo "Usage : $0 cmd"
+  echo -e "${yellow}Usage${default} : $0 ${blue}cmd${default}"
   echo ""
   echo -e "${yellow}│${blue} Commands ${default}"
   echo -e "${yellow}└┬─────────┘${default}"
@@ -251,7 +255,7 @@ usage () {
 echo -e "${yellow}┌──────────────────────────────────┐${default}"
 echo -e "${blue}  Screeps Server Manager for Linux${default}"
 echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.6.0"
+echo " ├── Made by iKlem - v0.7.0"
 echo " └── https://github.com/iKlem"
 echo ""
 case "$1" in

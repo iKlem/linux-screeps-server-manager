@@ -1,8 +1,12 @@
-assets/*
+# Screeps
 logs/*
+assets/*
 example-mods/*
-node_modules/*
-db.json
 mods.*
-steam_appid.txt
+db.json
 .screepsrc
+steam_appid.txt
+
+# Other files
+package.json
+node_modules/*
