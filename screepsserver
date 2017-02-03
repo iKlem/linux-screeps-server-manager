@@ -1,62 +1,135 @@
 #!/bin/bash
 #Author: Clement Delalande - http://github.com/iKlem
-#Version : 0.7.0
+#Version : 0.7.1
 
+# Colors
 blue="\e[96m"
 red="\e[91m"
 green="\e[32m"
 yellow="\e[93m"
 default="\e[0m"
 
-nodeMinVersion=6
+# Node maximum version to install.
+# This will be removed when PS will used v7 of node
+nodeVersionX=6
 
+# Directory where the screepsServer is cloned.
 rootDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Screeps bin folder, for launching the screeps commands.
 screepsBin="${rootDir}/node_modules/screeps/bin"
+
 # TODO: change this variable when the SSMC will be implemented
 # lastLogDir="$( basename $( ls -td -- ${server}/logs/* | head -n 1 ) )"
 # TODO: change this variable when the mod manager will be implemented
 # mods="${rootDir}/mods"
 
-deps=("python2.7" "tmux" "nodejs" "build-essential")
+# These are dependencies for Debian based distributions.
+depsDebian=("python2.7" "tmux" "nodejs" "build-essential")
+# These are dependencies for Archlinux based distributions.
+depsArch=("python2.7" "tmux" "node")
+# Array of missing dependencies if missing when checking.
 missingDeps=()
+
+# Used for the fail safe if the server doesn't launch properly.
+restartFailSafeCpt=0
+restartFailSafeMax=2
+
+checking_package_manager() {
+  [ "$(command -v $1)" ]
+}
 
 checking_dependencies () {
   nbDeps=0
   echo -e " ├─┬ ${yellow}Checking dependencies${default}"
-  # For each dependencies we check it with dpkg-query.
-  # TODO: test on other distro.
+  # If a distribution isn't there, you can fork the project and add the missing
+  # requirements or open an issue.
+
+  # Checking the package manager.
+  if checking_package_manager dpkg-query ; then
+    distro="debian" # Using Debian base distributions
+    deps=("${depsDebian[@]}")
+  elif checking_package_manager pacman ; then
+    distro="arch" # Using Archlinux base distribution
+    deps=("${depsArch[@]}")
+  fi
+
+  # Looping through the dependencies for the selected distribution
   for pkg in "${deps[@]}"; do
     if [ "${deps[-1]}" == "${pkg}" ]; then
-      echo -e " │ └─── Checking for \c"
+      echo -e " │ ╰─── Checking for \c"
     else
       echo -e " │ ├─── Checking for \c"
     fi
     printf "%20s..." "$pkg"
     sleep 0.5
-    dpkg-query -W -f='${Status}' "${pkg}" 2> /dev/null | grep -q -P '^install ok installed$'
+    if [ "${distro}" == "debian" ]; then
+      dpkg-query -W -f='${Status}' "${pkg}" 2> /dev/null | grep -q -P '^install ok installed$'
+    elif [ "${distro}" == "arch" ]; then
+      pacman -Qo "${pkg}" &> /dev/null
+    fi
+    # If the package is missing, it will be added to the missingDeps array.
     if [ $? -eq 1 ]; then
       echo -e "\t[ ${red}MISSING${default} ]"
       ((nbDeps++))
       missingDeps+=("${pkg}")
     else
-      echo -e "\t[ ${green}OK${default} ]"
+      if [ "${pkg}" == "nodejs" ]; then
+        check_for_node
+      else
+        echo -e "\t[ ${green}OK${default} ]"
+      fi
     fi
   done
 }
 
-install_dependencies () {
-  if [ $nbDeps -gt 0 ]; then
-    echo -e " ├─┬ ${yellow}Installing dependencies${default}"
-    sudo apt-get install "${missingDeps[@]}"
+check_for_node () {
+  echo ""
+  echo -e " │ │    ─── Checking version...    $(node -v)\c"
+  node -v | grep ${nodeVersionX} > /dev/null
+  if [[ $? -eq 0 ]]; then
+    echo -e "\t[ ${green}OK${default} ]"
+  else
+    echo -e "\t[ ${red}Error${default} ]"
+    echo -e " │ │    ├─── Please update node to version 6."
+    echo -e " │ │    ├─── See https://nodejs.org/en/download/package-manager/ for more informations."
+    echo -e " │ │    ╰─── ${red}DO not update to version 7 ! ${default}"
+    ((nbDeps++))
+    missingDeps+=("${pkg}")
   fi
-  echo -e " ${green}│"
-  echo -e " └─── All dependencies are installed!${default}"
 }
 
+install_dependencies () {
+  echo " │"
+  if [ $nbDeps -gt 0 ]; then
+    read -n1 -r -e -p " ├── Do you want the script to launch the install command ? [Y/n] " yn
+    if [[ (${yn} == "y") || (${yn} == "") ]]; then
+      echo -e " ├─┬ ${yellow}Installing dependencies${default}"
+      if [ "${distro}" == "debian" ]; then
+        sudo apt-get install "${missingDeps[@]}"
+      elif [ "${distro}" == "arch" ]; then
+        # TODO: do some test with a new arch linux distro (vm?)
+        # yaourt -S "${missingDeps[@]}"
+        echo "You will need to install these dependencies manually : ${missingDeps[@]} "
+        echo "The auto-install with Archlinux distributions will be implemented in a next update."
+        echo "Sorry for the inconvenience."
+      fi
+    else
+      echo -e "${green} │"
+      echo -e " ╰────── Done: Installation for dependencies stopped.${default}"
+      echo ""
+      exit 0
+    fi
+  fi
+  echo -e " ${green}│"
+  echo -e " ╰─── Done: All dependencies are installed!${default}"
+}
+
+# Since screeps is installed with NPM we have to create a package file.
+# This can avoid loosing user modified package file
 checking_for_package_file () {
   echo -e " ├─┬ ${yellow}Checking for package.json file${default}"
   if [ -e ${rootDir}/package.json ]; then
-    echo -e " │ ${green}└─── The package.json file exist.${default}"
+    echo -e " │ ${green}╰─── The package.json file exist.${default}"
   else
     echo -e " │ ${yellow}├─── Warning: The package.json file is missing!${default}"
     sleep 0.5
@@ -65,20 +138,20 @@ checking_for_package_file () {
       mkdir node_modules
     fi
     npm init -y > /dev/null
-    echo " │ └─── Done!"
+    echo " │ ╰─── Done!"
   fi
 }
 
 install_screeps () {
   echo -e " ├─${yellow}┬ Downloading Screeps server${default}"
-  echo -e " │ ${yellow}└────────────────────────────${default}"
+  echo -e " │ ${yellow}╰────────────────────────────${default}"
   echo ""
-  npm install --save screeps
+  npm i -S screeps
   echo ""
   echo -e " │  ${green}Screeps server downloaded${default}"
   echo -e " │"
   echo -e " ├─${yellow}┬ Starting configuration${default}"
-  echo -e " │ ${yellow}└────────────────────────${default}"
+  echo -e " │ ${yellow}╰────────────────────────${default}"
   sleep 0.25
   echo ""
   node ${screepsBin}/screeps.js init
@@ -89,9 +162,9 @@ install_screeps () {
 install_all () {
   sleep 2 && clear
   echo -e "\n${yellow}│${blue} Installation ${default}"
-  echo -e "${yellow}└┬─────────────┘${default}"
-  read -e -p " ├── Installing in ${rootDir} ? [y] " ok
-  if [ -z "${ok}" ]; then
+  echo -e "${yellow}╰┬─────────────╯${default}"
+  read -n1 -r -e -p " ├── Installing in ${rootDir} ? [Y/n] " yn
+  if [[ (${yn} == "y") || (${yn} == "") ]]; then
     echo " │"
     checking_dependencies
     echo " │"
@@ -99,81 +172,122 @@ install_all () {
     echo " │"
     if [ -d "${screepsBin}" ]; then
       echo -e "${green} │"
-      echo -e " └─── The server is already installed! You can launch it with the \"start\" command.${default}"
+      echo -e " ╰─── The server is already installed! You can launch it with the \"start\" command.${default}"
     else
       install_screeps
       sleep 0.5
       echo -e "${green} │"
-      echo -e " └─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
+      echo -e " ╰─── The server has been fully installed ! You can launch it with the \"start\" command.${default}"
     fi
     if [ $nbDeps -gt 0 ]; then
       echo -e "\n[ ${yellow}WARNING${default} ] Some dependencies aren't installed. Before starting your server you will need to install them."
       echo -e "            Command to run in root user : '${0} install-deps' OR 'apt-get install ${missingDeps[@]}'"
-      echo -e "\n[ ${blue}INFO${default} ] NodeJS version need to be 4 or later."
+      # echo -e "\n[ ${blue}INFO${default} ] NodeJS version need to be ${nodeVersionX}."
     fi
   else
     echo -e "${red} │"
-    echo -e " └────── Error: Installation aborted${default}"
+    echo -e " ╰────── Error: Installation aborted${default}"
     echo ""
     exit 9
   fi
 }
 
+# TODO: find why sometimes it fails
+# This will check if the screeps server is up (not tmux session).
 check_server_up () {
   port=$(awk '/port = / && !/cli/' ${rootDir}/.screepsrc | cut -c8-12)
   $(nc -z 127.0.0.1 ${port})
   retval=$?
 }
 
+# This will check if the tmux session is up (not screeps server).
 check_tmux () {
   retval=$(tmux list-sessions 2>&1 | awk '{print $1}' | grep -Ec "screeps")
 }
 
+# TODO: add new command to avoid relaunch OR to relaunch the screeps server.
 update_screeps () {
   stop_server
   sleep 0.5
   echo -e "\n${yellow}│${blue} Updating server ${default}"
-  echo -e "${yellow}└─────────────────┘${default}\n"
+  echo -e "${yellow}╰─────────────────╯${default}\n"
   check_server_up
   if [ $retval -eq 1 ]; then
-    npm update --save screeps
+    npm i -S screeps
     sleep 0.5
-    start_server
+    echo ""
+    if [ "$1" -eq 0 ]; then
+      start_server
+    else
+      echo -e "\n${green}Server updated!${default}"
+      echo -e "\nYou can now launch your server."
+    fi
   else
     echo -e "Can't stop server..." # TODO: add some style here dude.
   fi
 }
 
+launch_tmux_session() {
+  tmux new-session -s screeps -d && tmux send-keys -t screeps "node ${screepsBin}/screeps.js start" ENTER
+}
+
 start_server () {
   echo -e "${yellow}│${blue} Starting server ${default}"
-  echo -e "${yellow}└┬────────────────┘${default}"
+  echo -e "${yellow}╰┬────────────────╯${default}"
   check_server_up
   sleep 0.5
   if [ $retval -eq 0 ]; then
-    echo -e "${red} └── Error: Server is already started. You can't start more than 1 server with this script (wait for a next update ;) )${default}\n  "
+    echo -e "${red} ╰── Error: Server is already started. You can't start more than 1 server with this script (wait for a next update ;) )${default}\n  "
     exit 2
   else
     if [ -d "${screepsBin}" ]; then
       cpt=0
-      tmux new-session -s screeps -d && tmux send-keys -t screeps "node ${screepsBin}/screeps.js start" ENTER
+      # Creating tmux session for the server.
+      launch_tmux_session
       check_server_up
       echo -e " ├── Waiting for server to start\c"
+      # This is the "Fail safe"
+      # It will loop 16 times and each loop it check if the server is up.
+      # If not, it stop the tmux session and ask if the user want to relaunch.
+      # If the user has been asked 3 times, the script stop and launch an error.
+      # This avoid an infinite loop when waiting for the server to start.
       while [ $retval -eq 1 ]; do
         check_server_up
         ((cpt++))
         if [ $cpt -eq 16 ]; then
-          echo -e "\n${red} └──  Error: Server take too long to start!${default}"
-          exit 15
+          echo -e "\n${red} ├──  Error: Server take too long to start!${default}"
+          if [ ${restartFailSafeCpt} -lt ${restartFailSafeMax} ]; then
+            echo -e " │"
+            read -n1 -r -e -p " ├── Do you want to relaunch the server ? [Y/n] " yn
+            if [[ (${yn} == "y") || (${yn} == "") ]]; then
+              ((restartFailSafeCpt++))
+              echo -e " ├── Restarting..."
+              echo -e " │"
+              echo -e " ├── Waiting for server to start\c"
+              tmux kill-session -t screeps
+              sleep 1
+              cpt=0
+              launch_tmux_session
+            else
+              echo -e "${red} ╰──  Error: User doesn't want to relaunch.${default}"
+              tmux kill-session -t screeps
+              exit 15
+            fi
+          else
+            echo -e "${red} ╰──  RESTART_FAILSAFE_MAX Error: Can't launch the server.${default}\n"
+            tmux kill-session -t screeps
+            exit 30
+          fi
         fi
         sleep 1
         echo -e ".\c"
       done
-      echo -e "\n ${green}└─┬ Server started${default}"
+      echo -e "\n ${green}╰─┬ Server started${default}"
       echo -e "   ├─── Type 'tmux attach -t screeps' to get to the server screen"
       echo -e "   ├─── Do CTRL+B and d to detach from the server screen"
-      echo -e "   └─── More commands/informations with the \"$0 help\" command"
+      echo -e "   ╰─── More commands/informations with the \"$0 help\" command\n"
     else
-      echo -e "${red} └── Error: The server isn't installed. Please launch the installer with \"$0 install\"\n${default}"
+      echo -e "${red} ╰── Error: The server isn't installed. Please launch the installer with \"$0 install\"${default}\n"
       exit 4
     fi
   fi
@@ -181,11 +295,12 @@ start_server () {
 
 stop_server () {
   echo -e "${yellow}│${blue} Stopping server ${default}"
-  echo -e "${yellow}└┬────────────────┘${default}"
+  echo -e "${yellow}╰┬────────────────╯${default}"
   check_server_up
   sleep 0.5
   if [ $retval -eq 0 ]; then
-    tmux send "C-c" # Doing CTRL + C
+    cpt=0
+    tmux send "C-c" # Doing CTRL + C in the tmux session
     check_server_up
     echo -e " ├── Waiting for server to stop\c"
     while [ $retval -eq 0 ]; do
@@ -198,35 +313,35 @@ stop_server () {
       sleep 1
       echo -e ".\c"
     done
-    echo -e "\n${green} └── Server is stopped!${default}"
+    echo -e "\n${green} ╰── Server is stopped!${default}"
     tmux kill-session -t screeps
   else
-    echo -e "${red} └── ERROR: Server isn't started. No need to stop it.${default}\n"
+    echo -e "${red} ╰── ERROR: Server isn't started. No need to stop it.${default}\n"
   fi
 }
 
 show_status () {
   echo -e "${yellow}│${blue} Checking server status ${default}"
-  echo -e "${yellow}└┬───────────────────────┘${default}"
+  echo -e "${yellow}╰┬───────────────────────╯${default}"
   check_server_up
   sleep 0.5
   if [ $retval -eq 0 ]; then
-    echo -e " └── Server is ${green}OK${default}."
+    echo -e " ╰── Server is ${green}UP${default}."
   else
-    echo -e " └── Server is ${red}DOWN${default}."
+    echo -e " ╰── Server is ${red}DOWN${default}."
   fi
 }
 
 open_cli_console () {
   echo -e "${yellow}│${blue} Opening Screeps CLI...${default}   (CTRL+C two times to quit)"
-  echo -e "${yellow}└────────────────────────┘${default}"
+  echo -e "${yellow}╰────────────────────────╯${default}"
   check_server_up
   sleep 0.5
   if [ $retval -eq 0 ]; then
     echo ""
     node "${screepsBin}"/screeps.js cli
   else
-    echo -e "${red} └── ERROR: The server can't be reached. Maybe it's not started?${default}\n"
+    echo -e "${red} ╰── ERROR: The server can't be reached. Maybe it's not started?${default}\n"
     exit 5
   fi
 }
@@ -235,28 +350,30 @@ usage () {
   echo -e "${yellow}Usage${default} : $0 ${blue}cmd${default}"
   echo ""
   echo -e "${yellow}│${blue} Commands ${default}"
-  echo -e "${yellow}└┬─────────┘${default}"
-  echo -e " ├── install,         i \t - Install the dependencies and the Screeps server."
-  echo -e " ├── install-deps,    id\t - Install the dependencies."
-  echo -e " ├── start,           st\t - Launch the server."
-  echo -e " ├── stop,            sp\t - Stop the server."
-  echo -e " ├── restart,         r \t - Restart the server."
-  echo -e " ├── update,          u \t - Update the server."
-  echo -e " ├── status,          s \t - Show the server status."
-  echo -e " ├── cli                \t - Open the Screeps CLI (server need to be started)."
+  echo -e "${yellow}╰──────────╯${default}"
+  echo -e " install,              i \t - Install the dependencies and the Screeps server."
+  echo -e " install-deps,         id\t - Install the dependencies."
+  echo -e " start,                st\t - Launch the server."
+  echo -e " stop,                 sp\t - Stop the server."
+  echo -e " restart,              r \t - Restart the server."
+  echo -e " update,               u \t - Update the server."
+  echo -e "   --no-restart          \t - Do not launch the server after the update."
+  echo -e " status,               s \t - Show the server status."
+  echo -e " cli                     \t - Open the Screeps CLI (server need to be started)."
   # TODO: add the SSMC :)
   # echo -e " ├── console,         c \t - Open the SSMC (Screeps Server Manager Console)."
-  echo -e " └── help,            h \t - Show this command list."
+  echo -e " help,                 h \t - Show this command list."
   echo ""
 }
 
 # IDEA: add "tmux set mouse-select-pane" when creating the SSMC.
 
-echo -e "${yellow}┌──────────────────────────────────┐${default}"
-echo -e "${blue}  Screeps Server Manager for Linux${default}"
-echo -e "${yellow}└┬─────────────────────────────────┘${default}"
-echo " ├── Made by iKlem - v0.7.0"
-echo " └── https://github.com/iKlem"
+echo -e "${yellow}╭──────────────────────────────╮${default}"
+echo -e "${blue}  Linux Screeps Server Manager${default}"
+echo -e "${yellow}╰┬─────────────────────────────╯${default}"
+echo " │ Made by iKlem  -  v0.7.1"
+echo " │ https://github.com/iKlem"
+echo " ╰──"
 echo ""
 case "$1" in
   i|install)
@@ -287,7 +404,11 @@ case "$1" in
     start_config
     ;;
   u|update)
-    update_screeps
+    noRestart=0
+    if [ "$2" == "--no-restart" ]; then
+      noRestart=1
+    fi
+    update_screeps ${noRestart}
     ;;
   h|help)
     usage
