@@ -1,5 +1,5 @@
 # linux-screeps-server-manager
-###### Version: 0.7.1
+###### Version: 0.8.0
 
 ### Description
 Screeps server manager for Linux with auto installer and easy-to-use script.  
@@ -21,9 +21,9 @@ The manager has been tested on :
 ### Dependencies
 *N.B.: You can install these dependencies with the `./screepsserver install-deps` command*
 * Python 2
-* build-essential
+* build-essential (Debian / Ubuntu)
 * tmux
-* NodeJS (6)
+* NodeJS 6
 
 ### Installation
 * Download or clone this repository : `git clone https://github.com/iKlem/linux-screeps-server-manager.git NAME_FOR_SERVER`
