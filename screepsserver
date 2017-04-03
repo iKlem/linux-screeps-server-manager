@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Clement Delalande - http://github.com/iKlem
-#Version : 0.8.0
+#Version : 0.8.1
 
 # Colors
 blue="\e[96m"
@@ -366,22 +366,22 @@ fi
 }
 
 usage () {
-  echo -e " ${bold}${yellow}Usage${default} : $0 ${blue}cmd${default}"
+  echo -e " ${bold}${yellow}Usage${default} : $0 ${blue}CMD [OPTIONS]${default}"
   echo ""
   echo -e " ╭${bold}${blue} Commands${default}"
-  echo -e " │  install,              i \t Install the dependencies and the Screeps server."
-  echo -e " │  install-deps,         id\t Install the dependencies."
-  echo -e " │  start,                st\t Launch the server."
-  echo -e " │  stop,                 sp\t Stop the server."
-  echo -e " │  restart,              r \t Restart the server."
-  echo -e " │  update,               u \t Update the server."
-  echo -e " │       --no-restart       \t Do not launch the server after the update"
-  echo -e " │       --verbose          \t Show the node update/build process"
-  echo -e " │  status,               s \t Show the server status."
-  echo -e " │  cli                     \t Open the Screeps CLI (server need to be started)."
+  echo -e " │  i, \t install               \t Install the dependencies and the Screeps server."
+  echo -e " │  id,\t install-deps          \t Install the dependencies."
+  echo -e " │  st,\t start                 \t Launch the server."
+  echo -e " │  sp,\t stop                  \t Stop the server."
+  echo -e " │  r, \t restart               \t Restart the server."
+  echo -e " │  u, \t update                \t Update the server."
+  echo -e " │     \t    --no-restart       \t Do not launch the server after the update"
+  echo -e " │     \t    --verbose          \t Show the node update/build process"
+  echo -e " │  s, \t status                \t Show the server status."
+  echo -e " │     \t cli                   \t Open the Screeps CLI (server need to be started)."
   # TODO: add the SSMC :)
   # echo -e " ├── console,         c \t Open the SSMC (Screeps Server Manager Console)."
-  echo -e " │  help,                 h \t Show this command list."
+  echo -e " │  h, \t help                  \t Show this command list."
   echo -e " ╰──────────"
   echo ""
 }
@@ -390,7 +390,7 @@ usage () {
 
 echo ""
 echo -e " ╭ ${bold}${blue}Linux Screeps Server Manager${default}"
-echo -e " │  Made by iKlem  -  v0.8.0"
+echo -e " │  Made by iKlem  -  v0.8.1"
 echo -e " │  https://github.com/iKlem"
 echo -e " ╰──────"
 echo ""
@@ -438,7 +438,7 @@ case "$1" in
     ;;
   *)
     if [ -n "$1" ]; then
-      echo -e "${red}ERROR${default} - ${bold}Unknown command: $0   $1${default}\n"
+      echo -e "${red}ERROR${default} - ${bold}Unknown command: $0 $1${default}\n"
     fi
     usage
     exit 1

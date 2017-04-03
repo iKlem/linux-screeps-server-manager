@@ -1,5 +1,5 @@
 # linux-screeps-server-manager
-###### Version: 0.8.0
+###### Version: 0.8.1
 
 ### Description
 Screeps server manager for Linux with auto installer and easy-to-use script.  
