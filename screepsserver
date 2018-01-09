@@ -110,7 +110,7 @@ check_for_node () {
 install_dependencies () {
   echo " │"
   if [ $nbDeps -gt 0 ]; then
-    read -n1 -r -e -p " │  Do you want the script to launch the install command ? [Y/n] " yn
+    read -n1 -r -e -p " │  Do you want the script to launch the install command ? [y/n]" yn
     if [[ (${yn} == "y") || (${yn} == "") ]]; then
       echo -e " │ ${bold}${blue}Installing dependencies${default}"
       if [ "${distro}" == "debian" ]; then
@@ -171,7 +171,7 @@ install_screeps () {
 install_all () {
   sleep 2
   echo -e " ╭ ${bold}${blue}Installation${default}"
-  read -n1 -r -e -p " │  Installing in ${rootDir} ? [Y/n] " yn
+  read -n1 -r -e -p " │  Installing in ${rootDir} ? [y/n] " yn
   if [[ (${yn} == "y") || (${yn} == "") ]]; then
     echo " │"
     checking_dependencies 1
@@ -263,7 +263,7 @@ start_server () {
           echo -e "\n │  ${red}Error:${default} ${bold}Server take too long to start!${default}"
           if [ ${restartFailSafeCpt} -lt ${restartFailSafeMax} ]; then
             echo -e " │"
-            read -n1 -r -e -p " │  Do you want to relaunch the server ? [Y/n] " yn
+            read -n1 -r -e -p " │  Do you want to relaunch the server ? [y/n] " yn
             if [[ (${yn} == "y") || (${yn} == "") ]]; then
               ((restartFailSafeCpt++))
               echo -e " │"
