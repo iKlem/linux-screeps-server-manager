@@ -1,6 +1,8 @@
 # linux-screeps-server-manager
 ###### Version: 0.8.1
 
+# This repository is now archived & deprecated. Please use [screeps-launcher](https://github.com/screepers/screeps-launcher) instead of this script for your server maintenance
+
 ### Description
 Screeps server manager for Linux with auto installer and easy-to-use script.  
 The manager has been tested on :
